@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mac Mini Test</title>
+<meta name="description" content="First test page built and deployed by Claude from the Mac mini home server.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖥️</text></svg>">
+<style>
+  :root {
+    --bg: #0b0f17; --card: #131a26; --text: #e6edf6; --muted: #8a97ab;
+    --ok: #3ddc84; --bad: #ff5c6c; --wait: #f5c542; --accent: #7aa2ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: radial-gradient(circle at 50% 0%, #1a2440 0%, var(--bg) 60%);
+    color: var(--text);
+    font-family: ui-sans-serif, -apple-system, "SF Pro Text", system-ui, sans-serif;
+    display: grid; place-items: center; padding: 16px; overflow-x: hidden;
+  }
+  .card {
+    width: 100%; max-width: 520px; background: var(--card);
+    border: 1px solid #ffffff14; border-radius: 20px; padding: 32px 24px;
+    text-align: center; box-shadow: 0 20px 60px #0008; position: relative; z-index: 1;
+  }
+  .badge {
+    display: inline-flex; align-items: center; gap: 10px; padding: 14px 24px;
+    border-radius: 999px; font-size: clamp(1.4rem, 6vw, 2rem); font-weight: 800;
+    letter-spacing: .02em; cursor: pointer; user-select: none;
+    background: #f5c54222; color: var(--wait); border: 2px solid currentColor;
+    transition: transform .15s;
+  }
+  .badge:active { transform: scale(.96); }
+  .badge.ok  { background: #3ddc8422; color: var(--ok);  animation: pulse 2.4s infinite; }
+  .badge.bad { background: #ff5c6c22; color: var(--bad); }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 #3ddc8455; } 50% { box-shadow: 0 0 0 14px #3ddc8400; } }
+  h1 { font-size: 1rem; font-weight: 600; color: var(--muted); margin: 0 0 20px; letter-spacing: .08em; text-transform: uppercase; }
+  ul { list-style: none; padding: 0; margin: 24px 0 0; text-align: left; font-size: .95rem; }
+  li { padding: 8px 0; border-top: 1px solid #ffffff0d; display: flex; justify-content: space-between; gap: 12px; }
+  li span:last-child { font-variant-numeric: tabular-nums; }
+  .pass { color: var(--ok); } .fail { color: var(--bad); }
+  footer { margin-top: 24px; font-size: .8rem; color: var(--muted); }
+  /* hidden flare #1: invisible until you highlight it */
+  .secret { color: var(--card); }
+  .secret::selection { color: var(--accent); background: #7aa2ff22; }
+  #toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 120px);
+    background: var(--accent); color: #0b0f17; font-weight: 700; padding: 12px 20px;
+    border-radius: 12px; transition: transform .3s; z-index: 10; max-width: calc(100% - 32px); text-align: center;
+  }
+  #toast.show { transform: translate(-50%, 0); }
+  canvas { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  body.party .card { animation: wobble .6s ease-in-out infinite alternate; }
+  @keyframes wobble { from { transform: rotate(-2deg); } to { transform: rotate(2deg); } }
+  body.party { animation: hue 3s linear infinite; }
+  @keyframes hue { to { filter: hue-rotate(360deg); } }
+</style>
+</head>
+<body>
+<main class="card">
+  <h1>🖥️ Mac Mini · Test #1</h1>
+  <div id="badge" class="badge" title="go on, click me">⏳ Checking…</div>
+  <noscript><p class="fail"><strong>❌ NOT WORKING</strong>: JavaScript is off, so the checks can't run.</p></noscript>
+  <ul id="checks"></ul>
+  <footer>
+    Built by Claude on a Mac mini, served by GitHub Pages.<br>
+    <span class="secret">psst: try the Konami code ↑↑↓↓←→←→BA, or type “mini”</span>
+  </footer>
+</main>
+<div id="toast"></div>
+<canvas id="fx"></canvas>
+
+<script>
+(() => {
+  const badge = document.getElementById('badge');
+  const list = document.getElementById('checks');
+  const toast = document.getElementById('toast');
+
+  // --- status checks ---
+  const checks = [
+    ['Page loaded', () => true],
+    ['JavaScript running', () => true],
+    ['Served over HTTPS', () => location.protocol === 'https:' || location.hostname === 'localhost'],
+    ['Browser online', () => navigator.onLine],
+    ['Can reach GitHub', async () => {
+      try { const r = await fetch('https://api.github.com/zen', { cache: 'no-store' }); return r.ok; }
+      catch { return false; }
+    }],
+  ];
+
+  (async () => {
+    let allOk = true;
+    for (const [name, fn] of checks) {
+      const t0 = performance.now();
+      let ok = false;
+      try { ok = await fn(); } catch {}
+      allOk = allOk && ok;
+      const li = document.createElement('li');
+      li.innerHTML = `<span>${name}</span><span class="${ok ? 'pass' : 'fail'}">${ok ? '✓ pass' : '✗ fail'} · ${Math.round(performance.now() - t0)}ms</span>`;
+      list.appendChild(li);
+    }
+    badge.className = 'badge ' + (allOk ? 'ok' : 'bad');
+    badge.textContent = allOk ? '✅ IT’S WORKING' : '❌ NOT WORKING';
+    if (allOk) burst(80);
+  })();
+
+  // --- hidden flare #2: console greeting ---
+  console.log('%c👋 Hey, you found the console.', 'font-size:16px;font-weight:bold;color:#7aa2ff');
+  console.log('%cCommit, push, deploy: all from a Mac mini. Now click the badge 7 times.', 'color:#8a97ab');
+
+  // --- hidden flare #3: click the badge 7 times ---
+  let clicks = 0;
+  badge.addEventListener('click', () => {
+    clicks++;
+    if (clicks === 7) { say('🏆 Achievement unlocked: Persistent Clicker'); burst(150); clicks = 0; }
+  });
+
+  // --- hidden flare #4: Konami code → party mode; type "mini" → emoji rain ---
+  const konami = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+  let kpos = 0, typed = '';
+  addEventListener('keydown', e => {
+    kpos = e.key === konami[kpos] ? kpos + 1 : (e.key === konami[0] ? 1 : 0);
+    if (kpos === konami.length) { kpos = 0; document.body.classList.toggle('party'); say('🎉 PARTY MODE'); burst(200); }
+    typed = (typed + e.key.toLowerCase()).slice(-4);
+    if (typed === 'mini') rain('🖥️');
+  });
+
+  function say(msg) {
+    toast.textContent = msg; toast.classList.add('show');
+    clearTimeout(say.t); say.t = setTimeout(() => toast.classList.remove('show'), 2500);
+  }
+
+  // --- tiny particle engine ---
+  const cv = document.getElementById('fx'), ctx = cv.getContext('2d');
+  let parts = [];
+  const fit = () => { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); };
+  fit(); addEventListener('resize', fit);
+  const colors = ['#3ddc84','#7aa2ff','#f5c542','#ff5c6c','#c792ea'];
+  function burst(n) {
+    for (let i = 0; i < n; i++) parts.push({
+      x: innerWidth / 2, y: innerHeight / 2, vx: (Math.random() - .5) * 14, vy: Math.random() * -14 - 2,
+      s: 4 + Math.random() * 5, c: colors[i % colors.length], life: 120, txt: null,
+    });
+    tick();
+  }
+  function rain(ch) {
+    for (let i = 0; i < 40; i++) parts.push({
+      x: Math.random() * innerWidth, y: -20 - Math.random() * 300, vx: 0, vy: 2 + Math.random() * 3,
+      s: 24, life: 260, txt: ch, g: 0,
+    });
+    say('🖥️ mini mode'); tick();
+  }
+  let running = false;
+  function tick() {
+    if (running) return; running = true;
+    (function frame() {
+      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      parts = parts.filter(p => --p.life > 0);
+      for (const p of parts) {
+        p.vy += p.g ?? .35; p.x += p.vx; p.y += p.vy;
+        ctx.globalAlpha = Math.min(1, p.life / 40);
+        if (p.txt) { ctx.font = p.s + 'px serif'; ctx.fillText(p.txt, p.x, p.y); }
+        else { ctx.fillStyle = p.c; ctx.fillRect(p.x, p.y, p.s, p.s * .6); }
+      }
+      if (parts.length) requestAnimationFrame(frame); else { running = false; ctx.clearRect(0, 0, innerWidth, innerHeight); }
+    })();
+  }
+})();
+</script>
+</body>
+</html>
