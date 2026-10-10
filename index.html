@@ -47,6 +47,15 @@
   .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--wait); }
   .dot.on { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
   .dot.off { background: var(--bad); }
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .tile { padding: 14px 12px; border-radius: 14px; background: #0b0f17; border: 1px solid #ffffff0d; min-width: 0; }
+  .tile .label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .tile .mid { font-size: clamp(1.2rem, 5.5vw, 1.6rem); font-weight: 800; margin: 6px 0 4px; font-variant-numeric: tabular-nums; }
+  .tile .small { font-size: .75rem; color: var(--muted); }
+  .bar { height: 6px; border-radius: 3px; background: #ffffff14; overflow: hidden; margin: 6px 0; }
+  .bar > div { height: 100%; width: 0; background: var(--ok); transition: width .6s, background .6s; }
+  .ok-t { color: var(--ok); } .warn-t { color: var(--wait); } .hot-t { color: var(--bad); }
+  @media (max-width: 360px) { .tiles { grid-template-columns: 1fr; } }
   footer { margin-top: 24px; font-size: .8rem; color: var(--muted); }
   /* hidden flare #1: invisible until you highlight it */
   .secret { color: var(--card); }
@@ -73,6 +82,19 @@
     <div class="label"><span id="dot" class="dot"></span> Mac mini uptime</div>
     <div id="uptime" class="big">—</div>
     <div id="seen" class="small">contacting the mini…</div>
+  </section>
+  <section class="tiles">
+    <div class="tile">
+      <div class="label">CPU temp</div>
+      <div id="temp" class="mid">—</div>
+      <div id="tempNote" class="small">&nbsp;</div>
+    </div>
+    <div class="tile">
+      <div class="label">Memory</div>
+      <div id="mem" class="mid">—</div>
+      <div class="bar"><div id="memBar"></div></div>
+      <div id="swap" class="small">&nbsp;</div>
+    </div>
   </section>
   <ul id="checks"></ul>
   <footer>
@@ -146,6 +168,27 @@
     upEl.textContent = fmt((online ? now : status.updated_at) - status.boot_time);
     seenEl.textContent = (online ? 'online · ' : 'possibly offline · ') + 'last check-in ' + ago(since) +
       ' · booted ' + new Date(status.boot_time * 1000).toLocaleString();
+    renderMetrics(online);
+  }
+
+  const gb = b => (b / 1073741824).toFixed(1);
+  const tempEl = document.getElementById('temp'), tempNote = document.getElementById('tempNote');
+  const memEl = document.getElementById('mem'), memBar = document.getElementById('memBar'), swapEl = document.getElementById('swap');
+  function renderMetrics(online) {
+    const stale = online ? '' : ' (last known)';
+    const t = status.cpu_temp_c;
+    if (t == null) { tempEl.textContent = 'n/a'; tempNote.textContent = 'sensor unavailable'; }
+    else {
+      const [cls, word] = t < 70 ? ['ok-t', 'cool'] : t < 85 ? ['warn-t', 'warm'] : ['hot-t', 'hot'];
+      tempEl.innerHTML = `<span class="${cls}">${t.toFixed(1)}°C</span>`;
+      tempNote.textContent = `${word} · ${(t * 9 / 5 + 32).toFixed(0)}°F${stale}`;
+    }
+    if (status.mem_total == null) { memEl.textContent = 'n/a'; swapEl.textContent = 'unavailable'; return; }
+    const pct = status.mem_used / status.mem_total * 100;
+    memEl.textContent = `${gb(status.mem_used)} / ${gb(status.mem_total)} GB`;
+    memBar.style.width = pct.toFixed(0) + '%';
+    memBar.style.background = pct < 75 ? 'var(--ok)' : pct < 90 ? 'var(--wait)' : 'var(--bad)';
+    swapEl.textContent = `${pct.toFixed(0)}% used · swap ${gb(status.swap_used)} GB${stale}`;
   }
   loadStatus();
   setInterval(render, 1000);
