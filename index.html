@@ -40,6 +40,13 @@
   li { padding: 8px 0; border-top: 1px solid #ffffff0d; display: flex; justify-content: space-between; gap: 12px; }
   li span:last-child { font-variant-numeric: tabular-nums; }
   .pass { color: var(--ok); } .fail { color: var(--bad); }
+  .uptime { margin-top: 24px; padding: 16px; border-radius: 14px; background: #0b0f17; border: 1px solid #ffffff0d; }
+  .uptime .label { font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .uptime .big { font-size: clamp(1.4rem, 7vw, 2.1rem); font-weight: 800; margin: 6px 0; font-variant-numeric: tabular-nums; }
+  .uptime .small { font-size: .8rem; color: var(--muted); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--wait); }
+  .dot.on { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .dot.off { background: var(--bad); }
   footer { margin-top: 24px; font-size: .8rem; color: var(--muted); }
   /* hidden flare #1: invisible until you highlight it */
   .secret { color: var(--card); }
@@ -62,6 +69,11 @@
   <h1>🖥️ Mac Mini · Test #1</h1>
   <div id="badge" class="badge" title="go on, click me">⏳ Checking…</div>
   <noscript><p class="fail"><strong>❌ NOT WORKING</strong>: JavaScript is off, so the checks can't run.</p></noscript>
+  <section class="uptime">
+    <div class="label"><span id="dot" class="dot"></span> Mac mini uptime</div>
+    <div id="uptime" class="big">—</div>
+    <div id="seen" class="small">contacting the mini…</div>
+  </section>
   <ul id="checks"></ul>
   <footer>
     Built by Claude on a Mac mini, served by GitHub Pages.<br>
@@ -104,6 +116,40 @@
     badge.textContent = allOk ? '✅ IT’S WORKING' : '❌ NOT WORKING';
     if (allOk) burst(80);
   })();
+
+  // --- Mac mini uptime: the mini pushes status.json to the `status` branch every 5 min ---
+  const STATUS_URL = 'https://raw.githubusercontent.com/matthewsb419/mac-mini-test/refs/heads/status/status.json';
+  const STALE_AFTER = 20 * 60; // seconds without a heartbeat before we call it offline
+  const upEl = document.getElementById('uptime'), seenEl = document.getElementById('seen'), dot = document.getElementById('dot');
+  let status = null;
+
+  const fmt = s => {
+    const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), sec = Math.floor(s % 60);
+    return (d ? d + 'd ' : '') + [h, m, sec].map(n => String(n).padStart(2, '0')).join(':');
+  };
+  const ago = s => s < 90 ? 'just now' : s < 3600 ? Math.round(s / 60) + ' min ago' : fmt(s) + ' ago';
+
+  async function loadStatus() {
+    try {
+      const r = await fetch(STATUS_URL + '?t=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) throw new Error(r.status);
+      status = await r.json();
+    } catch { if (!status) { seenEl.textContent = 'couldn’t reach the mini’s status file'; dot.className = 'dot off'; } }
+    render();
+  }
+  function render() {
+    if (!status) return;
+    const now = Date.now() / 1000, since = now - status.updated_at;
+    const online = since < STALE_AFTER;
+    dot.className = 'dot ' + (online ? 'on' : 'off');
+    // if the mini is offline, freeze uptime at its last heartbeat instead of ticking forever
+    upEl.textContent = fmt((online ? now : status.updated_at) - status.boot_time);
+    seenEl.textContent = (online ? 'online · ' : 'possibly offline · ') + 'last check-in ' + ago(since) +
+      ' · booted ' + new Date(status.boot_time * 1000).toLocaleString();
+  }
+  loadStatus();
+  setInterval(render, 1000);
+  setInterval(loadStatus, 5 * 60 * 1000);
 
   // --- hidden flare #2: console greeting ---
   console.log('%c👋 Hey, you found the console.', 'font-size:16px;font-weight:bold;color:#7aa2ff');
